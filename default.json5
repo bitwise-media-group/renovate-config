@@ -122,5 +122,14 @@
       matchCurrentVersion: "!/^0/",
       automerge: true,
     },
+    // mise-managed tools are the exception to the 0.x carve-out: many live on perpetual
+    // 0.x (grype, syft, …) where minors are routine releases, so their minor/patch bumps
+    // automerge too — majors still wait for a human
+    {
+      matchManagers: ["mise"],
+      matchCurrentVersion: "/^0/",
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
+    },
   ],
 }
