@@ -1,0 +1,11 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+rules:
+  github-app:
+    # required: the Renovate bot's token is deliberately installation-wide — the App
+    # installation is the autodiscover scope, and Renovate needs the App's full
+    # permission set (contents, PRs, checks, workflows) to open and merge update PRs
+    # across every installed repo. Scoping happens at the App installation, not here.
+    ignore:
+      - renovate.yaml

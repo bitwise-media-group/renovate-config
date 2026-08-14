@@ -1,0 +1,107 @@
+// Copyright 2026 BitWise Media Group Ltd
+// SPDX-License-Identifier: MIT
+
+// Shared org preset — every repo the Renovate App is installed on inherits this via the
+// bot's global config (`extends: ["github>bitwise-media-group/renovate-config"]`), so no
+// per-repo onboarding file is needed. A repo overrides or extends it with its own
+// `.github/renovate.json5`.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    // Dockerfile `ARG *_VERSION` bumps via `# renovate: datasource=… depName=…` comments
+    "customManagers:dockerfileVersions",
+  ],
+  timezone: "Etc/UTC",
+  schedule: ["at any time"], // cadence is the bot workflow's cron, not repo config
+  semanticCommits: "enabled",
+  // chore(deps) default: dev-toolchain bumps (mise.lock, the .mise submodule) don't cut a
+  // release. github-actions bumps override to fix(deps) below — those pins ship to
+  // consumers. Repos where mise tools affect the shipped product override per-repo.
+  semanticCommitType: "chore",
+  semanticCommitScope: "deps",
+  // merge behind-base PRs without a rebase (no rebase queue); rebase only on conflict
+  rebaseWhen: "conflicted",
+  // Renovate itself squash-merges via the API on a later run once every check is green —
+  // GitHub-native automerge cannot work here (it can't satisfy the approval rule, and the
+  // ruleset's rebase merge method would land unsigned commits). The App is a bypass actor
+  // on the pull-request ruleset, and the server-side squash commit is web-flow signed.
+  platformAutomerge: false,
+  automergeType: "pr",
+  automergeStrategy: "squash",
+  // release cooldown — raises the `renovate/stability-days` pending check (was 7 days
+  // under dependabot; lowered to 3 org-wide)
+  minimumReleaseAge: "3 days",
+  prConcurrentLimit: 10,
+  prHourlyLimit: 0,
+  // re-lists config:recommended's defaults (overriding replaces, not merges), plus: never
+  // scan the toolchain submodule's contents — it is cloned only so `mise lock` can resolve
+  // the task include (see cloneSubmodules in renovate-global.json5)
+  ignorePaths: ["**/node_modules/**", "**/bower_components/**", ".mise/**"],
+  // toolchain submodule pointer bumps; .gitmodules `branch` carries the semver tag
+  // (vX.Y.Z), so updates classify as major/minor/patch and the automerge rule applies
+  "git-submodules": { enabled: true },
+  // mise.lock refresh via `mise lock --bump` (allowedUnsafeExecutions bot-side). Auto-
+  // merged by decision: mise's own MISE_MINIMUM_RELEASE_AGE cooldown is the guard.
+  lockFileMaintenance: { enabled: true, schedule: ["at any time"], automerge: true },
+  // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated
+  postUpdateOptions: ["gomodTidy"],
+  packageRules: [
+    // actions pins ship to consumers of the reusable workflows → fix(deps) patch release
+    { matchManagers: ["github-actions"], semanticCommitType: "fix" },
+    // Dependabot-equivalent groups, restricted to stable minor/patch so a major or 0.x
+    // falls out as its own PR and never blocks the group's automerge.
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["actions/**"],
+      groupName: "actions",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["github/**"],
+      groupName: "github",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["bitwise-media-group/**"],
+      groupName: "bitwise-media-group",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["codecov/**"],
+      groupName: "codecov",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["google/**", "googleapis/**"],
+      groupName: "google",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      matchPackageNames: ["goreleaser/**"],
+      groupName: "goreleaser",
+    },
+    // our own releases ship straight through — no cooldown (actions AND the toolchain
+    // submodule)
+    { matchPackageNames: ["bitwise-media-group/**"], minimumReleaseAge: null },
+    // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
+    // human (approve, then the /merge label flow)
+    {
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "!/^0/",
+      automerge: true,
+    },
+  ],
+}

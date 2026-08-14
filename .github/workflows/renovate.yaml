@@ -1,0 +1,103 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# The org's self-hosted Renovate bot. One scheduled run walks every repository the
+# "Renovate" GitHub App is installed on (autodiscover; the installation IS the scope) and
+# opens/updates/merges dependency PRs according to the shared preset in ../default.json5.
+#
+# The merge model, in one place:
+#   - The App's installation token makes Renovate create commits via the GitHub API
+#     (platformCommit), so every commit is GitHub-signed and shows Verified — that is what
+#     satisfies the org's required_signatures ruleset, which has no App bypass.
+#   - The App is a bypass actor on the org's *pull-request* ruleset, so Renovate can
+#     squash-merge its own green in-policy PRs without an approval (platformAutomerge is
+#     off; Renovate merges via the API on a later run once every check is green). The
+#     server-side squash commit is web-flow signed. This mirrors how dependabot-merge
+#     worked with the FF Merge App.
+#   - Renovate automerges at most ONE PR per base branch per run, so the hourly cron is
+#     also what gives same-day merge throughput. A run takes a few minutes; the repository
+#     cache below keeps it that way.
+name: Renovate
+
+on:
+  schedule:
+    # hourly, off the congested top of the hour (same convention as self-merge's
+    # `17 * * * *` in github-workflows)
+    - cron: "24 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry-run mode: empty (live), "extract", "lookup", or "full".'
+        required: false
+        default: ""
+        type: string
+      log-level:
+        description: Renovate log level.
+        required: false
+        default: info
+        type: choice
+        options:
+          - info
+          - debug
+
+# queued runs would race on branch pushes and automerge — strictly one at a time
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout of the config files only; repo access is via the App token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RENOVATE_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          # no `repositories:` — an installation-wide token, so autodiscover sees exactly
+          # the repos the App is installed on
+
+      # Repository cache: persists Renovate's per-repo extraction/lookup state between
+      # runs so unchanged repos are cheap. The Renovate container runs as uid 12021, so
+      # ownership is handed over before the run and back after (the save step's tar runs
+      # as the runner user).
+      - name: Restore repository cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/renovate/cache/renovate/repository
+          key: renovate-cache-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: renovate-cache-
+
+      - name: Hand cache to the Renovate container user
+        run: |
+          mkdir -p /tmp/renovate/cache/renovate/repository
+          sudo chown -R 12021:0 /tmp/renovate/
+
+      - uses: renovatebot/github-action@e09d604f8f803bb527bd8321ed5be06c460b8682 # v46.2.2
+        with:
+          configurationFile: renovate-global.json5
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          RENOVATE_REPOSITORY_CACHE: enabled
+          RENOVATE_DRY_RUN: ${{ inputs.dry-run || '' }}
+          LOG_LEVEL: ${{ inputs.log-level || 'info' }}
+
+      - name: Hand cache back to the runner user
+        if: always()
+        run: sudo chown -R "$(whoami)" /tmp/renovate/
+
+      - name: Save repository cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/renovate/cache/renovate/repository
+          key: renovate-cache-${{ github.run_id }}-${{ github.run_attempt }}
