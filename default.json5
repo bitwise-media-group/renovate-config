@@ -65,6 +65,39 @@
   },
   // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated
   postUpdateOptions: ["gomodTidy"],
+  customManagers: [
+    // Dockerfile GitHub-release-asset pins: bump a release tag AND the sha256 of one of
+    // its assets in lockstep (customManagers:dockerfileVersions above bumps only the
+    // version ARG, silently stranding any checksum pinned next to it). Convention — one
+    // annotated pair per asset, so multi-arch pins are one block per arch:
+    //
+    //   # renovate: datasource=github-release-attachments depName=openai/codex versioning=regex:^rust-v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
+    //   ARG CODEX_AMD64_RELEASE=rust-v0.147.0
+    //   ARG CODEX_AMD64_SHA256=0246e2e…
+    //
+    // Renovate resolves the new digest by finding which asset of the CURRENT release
+    // hashes to the pinned sha256, then hashing the same-named asset of the NEW release
+    // (github-release-attachments getDigest). Two hard constraints follow:
+    //  - the pinned value must be the FULL git tag (the datasource resolves digests via
+    //    `releases/tags/<currentValue>`), so `extractVersion` must NOT be used — carry a
+    //    tag prefix with `versioning=regex:…` instead, as above;
+    //  - `_RELEASE` (not `_VERSION`) keeps these blocks out of the dockerfileVersions
+    //    preset's regex, which would otherwise double-match and fight over the line.
+    // Blocks sharing a depName+tag land in the same branch, so all arches bump together.
+    {
+      customType: "regex",
+      description: "Update Dockerfile `ARG *_RELEASE` github tags together with their pinned `ARG *_SHA256*` release-asset checksums",
+      managerFilePatterns: [
+        "**/[Dd]ockerfile*",
+        "**/[Cc]ontainerfile*",
+        "**/*.[Dd]ockerfile*",
+        "**/*.[Cc]ontainerfile*",
+      ],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (?:lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s(?:ENV|ARG)\\s+[A-Za-z0-9_]+?_RELEASE[ =][\"']?(?<currentValue>[^\\s\"']+?)[\"']?\\s+(?:ENV|ARG)\\s+[A-Za-z0-9_]+?_SHA256(?:_[A-Za-z0-9]+?)?[ =][\"']?(?<currentDigest>[a-fA-F0-9]{64})[\"']?\\s",
+      ],
+    },
+  ],
   packageRules: [
     // actions pins ship to consumers of the reusable workflows → fix(deps) patch release
     { matchManagers: ["github-actions"], semanticCommitType: "fix" },
@@ -116,10 +149,13 @@
     // submodule)
     { matchPackageNames: ["bitwise-media-group/**"], minimumReleaseAge: null },
     // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
-    // human (approve, then the /merge label flow)
+    // human (approve, then the /merge label flow). The 0.x test must also catch prefixed
+    // release tags ("v0.5.0", "rust-v0.147.0") — matchCurrentVersion regexes run against
+    // the raw version string, and the release-asset custom manager above pins full tags,
+    // so a bare `!/^0/` would wave 0.x tags through as stable.
     {
       matchUpdateTypes: ["minor", "patch"],
-      matchCurrentVersion: "!/^0/",
+      matchCurrentVersion: "!/(^|[-v])0(\\.|$)/",
       automerge: true,
     },
     // mise-managed tools are the exception to the 0.x carve-out: many live on perpetual

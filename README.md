@@ -49,6 +49,18 @@ stock bot satisfies. The pieces that make it work:
   `codecov`, `google`, `goreleaser`) — majors and `0.x` fall out as individual PRs so they never block a group. Other
   ecosystems get `group:monorepos`' source-repo grouping from `config:recommended` (e.g. all otel-go core modules in
   one PR). gomod bumps run `go mod tidy` (`postUpdateOptions: gomodTidy`).
+- **Dockerfile release-asset pins**: an annotated `ARG <NAME>_RELEASE=<tag>` + `ARG <NAME>_SHA256=<hex>` pair bumps a
+  GitHub release tag **and** the sha256 of one of its assets in the same PR (the plain `dockerfileVersions` preset
+  bumps only `*_VERSION` args, stranding any checksum pinned beside them). One pair per asset — multi-arch images use
+  one block per arch; both land in one PR. The pinned value must be the full git tag (digest resolution looks the
+  release up by tag), so tag prefixes are handled with `versioning=regex:…`, never `extractVersion`:
+
+  ```dockerfile
+  # renovate: datasource=github-release-attachments depName=openai/codex versioning=regex:^rust-v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
+  ARG CODEX_AMD64_RELEASE=rust-v0.147.0
+  ARG CODEX_AMD64_SHA256=0246e2e773834e07f0fb5249ed6ebad12e4591e608f8c7bb97dd6a9690544c36
+  ```
+
 - **Submodules**: the git-submodules manager is on. A repo opts its `.mise` submodule in by setting `branch` in
   `.gitmodules` to the toolchain's full semver tag (e.g. `v2.3.0`) so updates classify as major/minor/patch; Renovate
   keeps the tag current from then on.
