@@ -16,18 +16,23 @@
   // the org's required_signatures ruleset. "auto" would detect this too; pinned explicitly
   // because the signature guarantee is load-bearing.
   platformCommit: "enabled",
-  // mise lockFileMaintenance shells out to `mise lock --bump`
+  // mise updates shell out to mise: the manager's artifact step regenerates
+  // mise.lock (`mise lock`) after an exact-pin bump, and the preset's transitional
+  // lockFileMaintenance runs `mise lock --bump` for repos still on "latest"
+  // selectors
   allowedUnsafeExecutions: ["mise"],
-  // mise's own release cooldown — the same knob update-tools.yaml set (3d, matching the
-  // preset's minimumReleaseAge)
+  // TRANSITIONAL (goes with the preset's lockFileMaintenance): mise's own release
+  // cooldown for `mise lock --bump` selector resolution (3d, matching the preset's
+  // minimumReleaseAge). Exact pins resolve regardless of age, so this is inert for
+  // pin-bump artifact runs.
   customEnvVariables: { MISE_MINIMUM_RELEASE_AGE: "3d" },
   // mise.toml's task_config in consumer repos includes .mise/tasks/*.toml from the
   // toolchain submodule; without the clone `mise lock` fails. The submodule's contents are
   // excluded from dependency scanning by ignorePaths in the preset.
   cloneSubmodules: true,
-  // Scope is bounded by the App INSTALLATION, not this filter (spike: github-workflows +
-  // renovate-config only; rollout: flip the installation to "All repositories" — no
-  // config change here).
+  // Scope is bounded by the App INSTALLATION, not this filter (spike: github-workflows,
+  // toolchain + renovate-config; rollout: flip the installation to "All repositories" —
+  // no config change here).
   autodiscover: true,
   autodiscoverFilter: ["bitwise-media-group/*"],
 }

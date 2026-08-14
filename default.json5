@@ -44,9 +44,25 @@
   // toolchain submodule pointer bumps; .gitmodules `branch` carries the semver tag
   // (vX.Y.Z), so updates classify as major/minor/patch and the automerge rule applies
   "git-submodules": { enabled: true },
-  // mise.lock refresh via `mise lock --bump` (allowedUnsafeExecutions bot-side). Auto-
-  // merged by decision: mise's own MISE_MINIMUM_RELEASE_AGE cooldown is the guard.
-  lockFileMaintenance: { enabled: true, schedule: ["at any time"], automerge: true },
+  // mise tools pin exact versions in config (the toolchain model): the mise manager
+  // bumps the pin and its artifact step regenerates mise.lock (`mise lock`,
+  // allowedUnsafeExecutions bot-side) in the same PR, under the normal
+  // minimumReleaseAge cooldown above.
+  //
+  // TRANSITIONAL — remove once every repo is on exact pins: repos whose tools still
+  // float on "latest" selectors get their mise.lock refreshed via `mise lock --bump`
+  // here (exact-pin repos produce no lock-maintenance diff, so this is inert for
+  // them). minimumReleaseAge must be null: a lock refresh is a synthetic update with
+  // no releaseTimestamp, and Renovate's default minimumReleaseAgeBehaviour
+  // (timestamp-required) would leave renovate/stability-days pending forever,
+  // deadlocking the automerge. mise's own MISE_MINIMUM_RELEASE_AGE cooldown is the
+  // guard by decision.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["at any time"],
+    automerge: true,
+    minimumReleaseAge: null,
+  },
   // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated
   postUpdateOptions: ["gomodTidy"],
   packageRules: [
