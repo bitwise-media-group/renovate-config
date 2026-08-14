@@ -5,8 +5,11 @@
 // .github/workflows/renovate.yaml. Repo-facing policy lives in default.json5; this file
 // holds the options that only make sense for the bot itself.
 {
-  // every repo inherits the shared preset; no per-repo onboarding file needed
-  extends: ["github>bitwise-media-group/renovate-config"],
+  // every repo inherits the shared preset; no per-repo onboarding file needed. The
+  // filename is explicit because Renovate only auto-discovers `default.json` for a bare
+  // github>owner/repo reference (deliberately, to avoid try/fail API calls — see
+  // renovate#36877); keeping JSON5 keeps the preset's comments.
+  extends: ["github>bitwise-media-group/renovate-config:default.json5"],
   onboarding: false,
   requireConfig: "optional",
   // App installation token → API-created, GitHub-verified commits, which is what satisfies

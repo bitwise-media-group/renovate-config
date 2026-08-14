@@ -13,7 +13,11 @@ submodule pointer and consuming the `# renovate:` annotations already sitting ab
   repositories the App is installed on. Rolling out to more repos means editing the installation, not this repo.
 - **[`renovate-global.json5`](renovate-global.json5)** is the bot-side config: autodiscover, API-created (Verified)
   commits via `platformCommit`, submodule cloning and the `mise lock --bump` allowance for lockfile maintenance.
-- **[`default.json5`](default.json5)** is the org preset, resolvable as `github>bitwise-media-group/renovate-config`.
+- **[`default.json5`](default.json5)** is the org preset, resolvable as
+  `github>bitwise-media-group/renovate-config:default.json5`. The `:default.json5` filename is mandatory in every
+  reference: Renovate auto-discovers only `default.json` for a bare `github>owner/repo` string (deliberately, to
+  avoid try/fail API calls — [renovate#36877](https://github.com/renovatebot/renovate/discussions/36877)); the
+  explicit name is what lets the preset stay JSON5 with inline comments.
   Every discovered repo inherits it with no onboarding file; policy changes here reach the whole org on the next run.
 
 ## The merge model
@@ -56,7 +60,7 @@ base, extend it explicitly:
 
 ```json5
 {
-  extends: ["github>bitwise-media-group/renovate-config"],
+  extends: ["github>bitwise-media-group/renovate-config:default.json5"],
   // overrides here, e.g. repos where mise tools are part of the shipped product:
   // lockFileMaintenance: { commitMessageAction: "…" }, semanticCommitType: "fix", …
 }

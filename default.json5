@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 // Shared org preset — every repo the Renovate App is installed on inherits this via the
-// bot's global config (`extends: ["github>bitwise-media-group/renovate-config"]`), so no
-// per-repo onboarding file is needed. A repo overrides or extends it with its own
-// `.github/renovate.json5`.
+// bot's global config (`extends: ["github>bitwise-media-group/renovate-config:default.json5"]`),
+// so no per-repo onboarding file is needed. A repo overrides or extends it with its own
+// `.github/renovate.json5`. The `:default.json5` filename must ALWAYS be spelled out:
+// Renovate only auto-discovers `default.json` for a bare github>owner/repo reference
+// (deliberately, to avoid try/fail API calls — renovate#36877); the explicit name is the
+// price of keeping these comments.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: [
