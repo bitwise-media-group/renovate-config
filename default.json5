@@ -154,15 +154,19 @@
     // submodule)
     { matchPackageNames: ["bitwise-media-group/**"], minimumReleaseAge: null },
     // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
-    // human (approve, then the /merge label flow). The 0.x test must also catch prefixed
-    // release tags ("v0.5.0", "rust-v0.147.0") — matchCurrentVersion regexes run against
-    // the raw version string, and the release-asset custom manager above pins full tags,
-    // so a bare `!/^0/` would wave 0.x tags through as stable.
+    // human review (the auto-merge label rules below hand the post-approval merge to
+    // the merge workflow). The 0.x test must also catch prefixed release tags
+    // ("v0.5.0", "rust-v0.147.0") — matchCurrentVersion regexes run against the raw
+    // version string, and the release-asset custom manager above pins full tags, so a
+    // bare `!/^0/` would wave 0.x tags through as stable.
     {
       matchUpdateTypes: ["minor", "patch"],
       matchCurrentVersion: "!/(^|[-v])0(\\.|$)/",
       automerge: true,
     },
+    // digest-only bumps (go module pseudo-versions, SHA-pinned release assets) carry
+    // no semver signal for a human to review — automerge unattended like a patch
+    { matchUpdateTypes: ["digest"], automerge: true },
     // mise-managed tools are the exception to the 0.x carve-out: many live on perpetual
     // 0.x (grype, syft, …) where minors are routine releases, so their minor/patch bumps
     // automerge too — majors still wait for a human
@@ -171,6 +175,20 @@
       matchCurrentVersion: "/^0/",
       matchUpdateTypes: ["minor", "patch"],
       automerge: true,
+    },
+    // human-gated updates (majors, non-mise 0.x) deliberately do NOT set automerge —
+    // Renovate is a bypass actor on the pull-request ruleset, so its own automerge
+    // would land them without review. Instead the auto-merge label arms the merge
+    // workflow (github-workflows merge.yaml): once a human approves and every check is
+    // green, ff-merge squash-merges the PR on our behalf — Renovate branches are never
+    // fast-forwardable (rebaseWhen: conflicted), so ff-merge's squash-authors path
+    // does an API squash, web-flow signed, no rebase queue, no manual merge.
+    { matchUpdateTypes: ["major"], addLabels: ["auto-merge"] },
+    {
+      matchManagers: ["!mise"],
+      matchUpdateTypes: ["minor", "patch"],
+      matchCurrentVersion: "/(^|[-v])0(\\.|$)/",
+      addLabels: ["auto-merge"],
     },
     // ecosystem labels, merged (addLabels) on top of the top-level `dependencies` label.
     // One rule per language label in the org-synced set; managers without a rule here

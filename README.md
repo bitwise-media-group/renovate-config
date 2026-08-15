@@ -40,8 +40,10 @@ stock bot satisfies. The pieces that make it work:
 - **Cooldown**: `minimumReleaseAge: 3 days` (surfaced as the `renovate/stability-days` pending check). Exception: no
   cooldown on `bitwise-media-group/**` — our own releases ship straight through. mise tool bumps get the same 3-day
   cooldown via `MISE_MINIMUM_RELEASE_AGE`, enforced by `mise lock --bump` itself.
-- **Automerge**: stable (`>=1.0.0`) minor/patch updates, and mise.lock `lockFileMaintenance` PRs. Majors and `0.x`
-  wait for a human — approve, then the usual `/merge` label flow.
+- **Automerge**: stable (`>=1.0.0`) minor/patch updates, digest-only bumps, and mise.lock `lockFileMaintenance` PRs.
+  Majors and `0.x` wait for a human review, but not a human merge: the preset arms them with the `auto-merge` label,
+  and once someone approves and every check is green, the merge workflow's `ff-merge` squash-merges the PR (Renovate
+  branches are never fast-forwardable, so its `squash-authors` path does an API squash — web-flow signed, no rebase).
 - **Commit types**: `chore(deps)` by default (dev-toolchain bumps don't release);
   **github-actions bumps are `fix(deps)`** because SHA pins in reusable workflows ship to consumers and must cut a
   release-please patch.
