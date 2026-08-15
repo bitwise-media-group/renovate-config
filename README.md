@@ -51,6 +51,13 @@ stock bot satisfies. The pieces that make it work:
   `codecov`, `google`, `goreleaser`) — majors and `0.x` fall out as individual PRs so they never block a group. Other
   ecosystems get `group:monorepos`' source-repo grouping from `config:recommended` (e.g. all otel-go core modules in
   one PR). gomod bumps run `go mod tidy` (`postUpdateOptions: gomodTidy`).
+- **Committed action bundles**: JS action repos that commit their rollup output (e.g.
+  [`ff-merge`](https://github.com/bitwise-media-group/ff-merge),
+  [`setup-evolve`](https://github.com/bitwise-media-group/setup-evolve)) rebuild `dist/` after npm bumps so the
+  PR carries a matching bundle — otherwise the dist-up-to-date check fails and blocks every merge path. The
+  rebuild commands are allow-listed bot-side (`allowedCommands` in `renovate-global.json5`); each repo opts in
+  with a `postUpgradeTasks` rule in its own `.github/renovate.json5` (see the snippet under
+  [Per-repo overrides](#per-repo-overrides)), so new bundled-action repos self-serve without touching this repo.
 - **Dockerfile release-asset pins**: an annotated `ARG <NAME>_RELEASE=<tag>` + `ARG <NAME>_SHA256=<hex>` pair bumps a
   GitHub release tag **and** the sha256 of one of its assets in the same PR (the plain `dockerfileVersions` preset
   bumps only `*_VERSION` args, stranding any checksum pinned beside them). One pair per asset — multi-arch images use
@@ -77,6 +84,25 @@ base, extend it explicitly:
   extends: ["github>bitwise-media-group/renovate-config:default.json5"],
   // overrides here, e.g. repos where mise tools are part of the shipped product:
   // lockFileMaintenance: { commitMessageAction: "…" }, semanticCommitType: "fix", …
+}
+```
+
+A repo that commits its rollup bundle keeps `dist/` in sync with a `postUpgradeTasks` rule (the commands must
+match the bot's `allowedCommands` allow-list, or Renovate skips them):
+
+```json5
+{
+  extends: ["github>bitwise-media-group/renovate-config:default.json5"],
+  packageRules: [
+    {
+      matchManagers: ["npm"],
+      postUpgradeTasks: {
+        commands: ["npm ci --ignore-scripts", "npm run build"],
+        fileFilters: ["dist/**"],
+        executionMode: "branch",
+      },
+    },
+  ],
 }
 ```
 
