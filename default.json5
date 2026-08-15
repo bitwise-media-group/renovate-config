@@ -23,6 +23,11 @@
   // consumers. Repos where mise tools affect the shipped product override per-repo.
   semanticCommitType: "chore",
   semanticCommitScope: "deps",
+  // every Renovate PR carries `dependencies`; ecosystem labels are layered on via
+  // addLabels packageRules below. Renovate never CREATES labels on GitHub — it only
+  // applies ones that already exist — which is safe org-wide because these are synced
+  // to every repo from github-settings/repo-config/labels.json.
+  labels: ["dependencies"],
   // merge behind-base PRs without a rebase (no rebase queue); rebase only on conflict
   rebaseWhen: "conflicted",
   // Renovate itself squash-merges via the API on a later run once every check is green —
@@ -167,5 +172,19 @@
       matchUpdateTypes: ["minor", "patch"],
       automerge: true,
     },
+    // ecosystem labels, merged (addLabels) on top of the top-level `dependencies` label.
+    // One rule per language label in the org-synced set; managers without a rule here
+    // (e.g. the Dockerfile custom managers) still get `dependencies`. Category matches
+    // cover every manager for that language (gomod+golang-version, maven+gradle,
+    // npm+nvm+…, pip+poetry+uv+…, terraform+terragrunt+…).
+    { matchManagers: ["github-actions"], addLabels: ["actions"] },
+    { matchManagers: ["git-submodules"], addLabels: ["submodule"] },
+    { matchManagers: ["mise"], addLabels: ["mise"] },
+    { matchCategories: ["dotnet"], addLabels: ["dotnet"] },
+    { matchCategories: ["golang"], addLabels: ["golang"] },
+    { matchCategories: ["java"], addLabels: ["java"] },
+    { matchCategories: ["js", "node"], addLabels: ["node"] },
+    { matchCategories: ["python"], addLabels: ["python"] },
+    { matchCategories: ["terraform"], addLabels: ["terraform"] },
   ],
 }
