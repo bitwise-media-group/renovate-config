@@ -1,0 +1,47 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# Fast-forward merge — thin caller for the org's reusable merge workflow. It
+# enables both flows: a `/merge` comment merges an approved, green PR now;
+# `/auto-merge` (or the `auto-merge` label) arms it to merge automatically once
+# approved and green. Both preserve every commit signature via ff-merge.
+#
+# None of these triggers attach a check run to the PR's head commit, so the
+# merge machinery leaves no skipped-job clutter on the checks list. The
+# approval signal is captured by the companion merge-review-ack.yaml and
+# re-enters via workflow_run; the scheduled sweep backstops any missed trigger.
+#
+# Prerequisites (one-time, org-wide — see bitwise-media-group/ff-merge):
+#   - org variable FF_MERGE_CLIENT_ID and org secret FF_MERGE_PRIVATE_KEY
+#   - the "FF Merge" App installed on this repo and in the ruleset bypass list
+#
+# Pinned to a full commit SHA (tag in the comment); Renovate keeps it fresh.
+
+name: Merge
+
+# issue_comment drives `/merge` and arms `/auto-merge`; workflow_run(completed)
+# attempts the auto-merge once the PR is approved and green; the schedule
+# sweeps armed PRs as a backstop. `workflows:` lists every workflow that must
+# pass plus "Merge Review Ack" — whichever finishes last triggers the attempt,
+# and ff-merge re-verifies all checks. This repo has no CI workflow (the only
+# workflow, renovate.yaml, is schedule/dispatch-only), so "Security Analysis"
+# (security.yaml) is the sole required check.
+on: # zizmor: ignore[dangerous-triggers] -- required: workflow_run gates auto-merge on the checks; no PR code is checked out or run
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ["Security Analysis", "Merge Review Ack"]
+    types: [completed]
+  schedule:
+    - cron: "17 * * * *"
+
+# the App token does the privileged work; the caller grants nothing
+permissions: {}
+
+jobs:
+  merge:
+    uses: bitwise-media-group/github-workflows/.github/workflows/merge.yaml@b3d4519a6d79376364184f0ca298685dcfa287f2 # v6.1.1
+    with:
+      app-client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+    secrets:
+      app-private-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}
