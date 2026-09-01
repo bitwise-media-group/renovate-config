@@ -111,6 +111,22 @@
     // instead of ">= 5.0, < 6.61", silently permitting versions the constraint was
     // meant to exclude. widen is the confirmed fix (renovatebot/renovate#13491).
     { matchManagers: ["terraform"], rangeStrategy: "widen" },
+    // terraform-docs embeds the provider/module version constraints into the READMEs and
+    // the module repos' lint task checks them (`terraform-docs --output-check`), so a
+    // constraint bump alone leaves CI red on a stale README. Regenerate the docs in the
+    // same PR (`mise run docs` — the repos' stable docs task; changed files are committed
+    // by default). Scoped to the terraform-* module repos: deployment roots
+    // (cloud-accounts) have no .terraform-docs.yml, so the archetype docs task would fail
+    // there. The command must stay allowlisted in renovate-global.json5 allowedCommands.
+    {
+      matchManagers: ["terraform"],
+      matchRepositories: ["bitwise-media-group/terraform-*"],
+      postUpgradeTasks: {
+        commands: ["mise run docs"],
+        // once per branch after all updates land, not once per dependency
+        executionMode: "branch",
+      },
+    },
     // Dependabot-equivalent groups, restricted to stable minor/patch so a major or 0.x
     // falls out as its own PR and never blocks the group's automerge.
     {

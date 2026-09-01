@@ -21,12 +21,20 @@
   // lockFileMaintenance runs `mise lock --bump` for repos still on "latest"
   // selectors
   allowedUnsafeExecutions: ["mise"],
-  // postUpgradeTasks allow-list — the org capability behind the dist-rebuild pattern:
-  // JS action repos that commit their rollup bundle (ff-merge, setup-evolve, …) declare
-  // a postUpgradeTasks rule in their own .github/renovate.json5 to rebuild dist/ after
-  // npm bumps; only these commands may run. Anchored exact matches — widen only
-  // deliberately, this is the execution boundary for repo-supplied commands.
-  allowedCommands: ["^npm ci --ignore-scripts$", "^npm run build$"],
+  // postUpgradeTasks allow-list — the execution boundary for repo-supplied commands;
+  // anchored exact matches, widen only deliberately. Two org patterns run through it:
+  //  - dist rebuild: JS action repos that commit their rollup bundle (ff-merge,
+  //    setup-evolve, …) declare a postUpgradeTasks rule in their own
+  //    .github/renovate.json5 to rebuild dist/ after npm bumps;
+  //  - terraform docs regen: the preset runs `mise run docs` in terraform-* module repos
+  //    after provider/module constraint bumps so the terraform-docs README blocks (which
+  //    embed the constraints, and whose lint check would otherwise go stale-red) are
+  //    refreshed in the same PR.
+  allowedCommands: [
+    "^npm ci --ignore-scripts$",
+    "^npm run build$",
+    "^mise run docs$",
+  ],
   // TRANSITIONAL (goes with the preset's lockFileMaintenance): mise's own release
   // cooldown for `mise lock --bump` selector resolution (3d, matching the preset's
   // minimumReleaseAge). Exact pins resolve regardless of age, so this is inert for
