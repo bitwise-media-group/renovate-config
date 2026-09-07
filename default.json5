@@ -171,9 +171,22 @@
       matchPackageNames: ["goreleaser/**"],
       groupName: "goreleaser",
     },
-    // our own releases ship straight through — no cooldown (actions AND the toolchain
-    // submodule)
-    { matchPackageNames: ["bitwise-media-group/**"], minimumReleaseAge: null },
+    // our own releases ship straight through — no cooldown (actions, the toolchain
+    // submodule AND our ghcr.io images). matchPackageNames globs match the WHOLE
+    // packageName, and each manager names ours differently: github-actions uses the
+    // bare `owner/repo`, git-submodules the full clone URL from .gitmodules, docker the
+    // registry-prefixed image. The bare glob alone silently missed the submodule, and
+    // since the git-refs datasource has no release timestamps at all, the toolchain
+    // bump sat in "Pending Status Checks" forever under timestamp-required
+    // (dotty/patchy: .mise v2.4.0 → v2.4.2 never got a PR).
+    {
+      matchPackageNames: [
+        "bitwise-media-group/**",
+        "https://github.com/bitwise-media-group/**",
+        "ghcr.io/bitwise-media-group/**",
+      ],
+      minimumReleaseAge: null,
+    },
     // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
     // human review (the auto-merge label rules below hand the post-approval merge to
     // the merge workflow). The 0.x test must also catch prefixed release tags
@@ -188,6 +201,19 @@
     // digest-only bumps (go module pseudo-versions, SHA-pinned release assets) carry
     // no semver signal for a human to review — automerge unattended like a patch
     { matchUpdateTypes: ["digest"], automerge: true },
+    // docker digest bumps: the docker datasource only yields release timestamps for
+    // Docker Hub (`tag_last_pushed`); gcr.io / ghcr.io / cgr.dev images get none, and
+    // reproducible builds (distroless) even stamp the image config `created` with the
+    // epoch, which Renovate rejects. Under the default minimumReleaseAgeBehaviour
+    // (timestamp-required) a timestamp-less update is pending forever — the
+    // renovate/stability-days check never clears, rebases are refused, automerge
+    // deadlocks (patchy#260). timestamp-optional lets those through while keeping the
+    // cooldown wherever a real timestamp exists.
+    {
+      matchDatasources: ["docker"],
+      matchUpdateTypes: ["digest"],
+      minimumReleaseAgeBehaviour: "timestamp-optional",
+    },
     // mise-managed tools are the exception to the 0.x carve-out: many live on perpetual
     // 0.x (grype, syft, …) where minors are routine releases, so their minor/patch bumps
     // automerge too — majors still wait for a human
