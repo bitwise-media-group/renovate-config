@@ -1,9 +1,11 @@
 // Copyright 2026 BitWise Media Group Ltd
 // SPDX-License-Identifier: MIT
 
-// Self-hosted (bot-side) global config, read only by the Renovate run in
-// .github/workflows/renovate.yaml. Repo-facing policy lives in default.json5; this file
-// holds the options that only make sense for the bot itself.
+// Self-hosted (bot-side) global config. Every repo's own .github/workflows/renovate.yaml
+// (github-workflows' reusable renovate.yaml) checks this file out from main and runs
+// Renovate with it, pinned to that one repo; the manual org-wide fallback in
+// .github/workflows/renovate-org.yaml reads it as-is. Repo-facing policy lives in
+// default.json5; this file holds the options that only make sense for the bot itself.
 {
   // every repo inherits the shared preset; no per-repo onboarding file needed. The
   // filename is explicit because Renovate only auto-discovers `default.json` for a bare
@@ -40,13 +42,15 @@
   // minimumReleaseAge). Exact pins resolve regardless of age, so this is inert for
   // pin-bump artifact runs.
   customEnvVariables: { MISE_MINIMUM_RELEASE_AGE: "3d" },
-  // mise.toml's task_config in consumer repos includes .mise/tasks/*.toml from the
-  // toolchain submodule; without the clone `mise lock` fails. The submodule's contents are
+  // mise.toml's task_config in consumer repos includes .mise/common/tasks.toml (and
+  // .mise/archetypes/<lang>/tasks.toml) from the toolchain submodule; without the clone
+  // `mise lock` fails. The submodule's contents are
   // excluded from dependency scanning by ignorePaths in the preset.
   cloneSubmodules: true,
-  // Scope is bounded by the App INSTALLATION, not this filter (spike: github-workflows,
-  // toolchain + renovate-config; rollout: flip the installation to "All repositories" —
-  // no config change here).
+  // Only the org-wide fallback (renovate-org.yaml) autodiscovers: the per-repo runs
+  // override both settings from the environment (RENOVATE_AUTODISCOVER=false,
+  // RENOVATE_REPOSITORIES=<the caller>). For the fallback, scope is bounded by the App
+  // INSTALLATION, not this filter.
   autodiscover: true,
   autodiscoverFilter: ["bitwise-media-group/*"],
 }

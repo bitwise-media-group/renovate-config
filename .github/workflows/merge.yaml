@@ -24,7 +24,7 @@ name: Merge
 # sweeps armed PRs as a backstop. `workflows:` lists every workflow that must
 # pass plus "Merge Review Ack" — whichever finishes last triggers the attempt,
 # and ff-merge re-verifies all checks. This repo has no CI workflow (the only
-# workflow, renovate.yaml, is schedule/dispatch-only), so "Security Analysis"
+# other workflow, renovate-org.yaml, is dispatch-only), so "Security Analysis"
 # (security.yaml) is the sole required check.
 on: # zizmor: ignore[dangerous-triggers] -- required: workflow_run gates auto-merge on the checks; no PR code is checked out or run
   issue_comment:

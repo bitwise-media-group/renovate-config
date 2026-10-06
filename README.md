@@ -8,11 +8,19 @@ submodule pointer and consuming the `# renovate:` annotations already sitting ab
 
 ## How it works
 
-- **[`.github/workflows/renovate.yaml`](.github/workflows/renovate.yaml)** runs Renovate hourly with a token minted
-  from the org's **"Renovate" GitHub App**. The App **installation is the scope**: autodiscover walks exactly the
-  repositories the App is installed on. Rolling out to more repos means editing the installation, not this repo.
-- **[`renovate-global.json5`](renovate-global.json5)** is the bot-side config: autodiscover, API-created (Verified)
-  commits via `platformCommit`, submodule cloning and the `mise lock --bump` allowance for lockfile maintenance.
+- **Every repository runs its own Renovate.** Each carries a `.github/workflows/renovate.yaml`, a thin caller for
+  [github-workflows](https://github.com/bitwise-media-group/github-workflows)' reusable `renovate.yaml`. It runs
+  Renovate against that repository only, hourly on its own cron, in parallel with every other repo, and also straight
+  away when someone ticks a Dependency Dashboard or Renovate PR checkbox. The token is minted from the org's
+  **"Renovate" GitHub App** and scoped to the calling repository, so the App must be installed on it. The reusable
+  workflow checks this repository out from `main` and hands it `renovate-global.json5` unchanged, so bot-side changes
+  here reach every repo on its next run.
+- **[`.github/workflows/renovate-org.yaml`](.github/workflows/renovate-org.yaml)** is the old org-wide loop: one run
+  autodiscovers every repository the App is installed on. It no longer runs on a schedule and is kept only as a manual
+  `workflow_dispatch` fallback (see [Operating the bot](#operating-the-bot)).
+- **[`renovate-global.json5`](renovate-global.json5)** is the bot-side config: API-created (Verified) commits via
+  `platformCommit`, submodule cloning and the `mise lock --bump` allowance for lockfile maintenance. Its
+  `autodiscover` applies only to the org-wide fallback; the per-repo runs override it from the environment.
 - **[`default.json5`](default.json5)** is the org preset, resolvable as
   `github>bitwise-media-group/renovate-config:default.json5`. The `:default.json5` filename is mandatory in every
   reference: Renovate auto-discovers only `default.json` for a bare `github>owner/repo` string (deliberately, to
@@ -33,7 +41,8 @@ stock bot satisfies. The pieces that make it work:
    the signed-commit rule (a rebase merge would land the branch commits unsigned). Renovate merges via the API on a
    later run once every check on the head is green; the server-side squash commit is web-flow signed.
 3. `rebaseWhen: "conflicted"` merges behind-base PRs **without** a rebase-and-rerun cycle, and Renovate automerges at
-   most one PR per base branch per run — the hourly cron is what gives same-day throughput for a queue of green PRs.
+   most one PR per base branch per run — each repo's hourly cron is what gives same-day throughput for a queue of
+   green PRs.
 
 ## Policy summary (the preset)
 
@@ -106,13 +115,15 @@ match the bot's `allowedCommands` allow-list, or Renovate skips them):
 }
 ```
 
-To opt a repo out entirely, uninstall the App from it (or set `{ enabled: false }` in the repo's own config).
+To opt a repo out entirely, delete its `.github/workflows/renovate.yaml` and uninstall the App from it (or set
+`{ enabled: false }` in the repo's own config).
 
 ## One-time org setup
 
 1. Create the org-owned **"Renovate" GitHub App** (webhook off). Permissions: Checks RW, Commit statuses RW, Contents
-   RW, Issues RW, Pull requests RW, Workflows RW, Administration R, Members R, Dependabot alerts R. Install it on the
-   target repositories (the installation is the autodiscover scope).
+   RW, Issues RW, Pull requests RW, Workflows RW, Administration R, Members R, Dependabot alerts R. Install it on
+   every repository that carries the per-repo caller (the installation is also the org-wide fallback's autodiscover
+   scope).
 2. Set the org variable `RENOVATE_CLIENT_ID` and org secret `RENOVATE_PRIVATE_KEY` (all repositories — mirrors the
    FF Merge pair).
 3. In [`github-settings`](https://github.com/bitwise-media-group/github-settings), add the App to the
@@ -121,9 +132,13 @@ To opt a repo out entirely, uninstall the App from it (or set `{ enabled: false 
 
 ## Operating the bot
 
-- **Dry run**: `workflow_dispatch` with `dry-run: full` (and `log-level: debug`) logs everything Renovate would do —
-  detected managers, resolved preset, planned PRs — without writing anything.
+- **Dry run**: run a repo's own Renovate workflow by hand (`workflow_dispatch`) with `dry-run: full` (and
+  `log-level: debug`); it logs everything Renovate would do — detected managers, resolved preset, planned PRs —
+  without writing anything.
+- **Org-wide fallback**: `renovate-org.yaml` takes the same inputs and walks every installed repository in one run,
+  e.g. to sweep repos that do not have a caller yet. A live run races the per-repo bots — both push to the same
+  `renovate/*` branches and both automerge — so prefer `dry-run: full` and use a live run only as a fallback.
 - **Dependency Dashboard**: each repo gets a "Dependency Dashboard" issue listing pending/open/blocked updates;
   tick a checkbox there to force retries or unblock rate-limited PRs.
-- **Rollback**: disable this workflow, close open `renovate/*` PRs and the dashboard issue, and remove the App from
-  the ruleset bypass list. Renovate keeps no state outside GitHub.
+- **Rollback**: disable the per-repo Renovate workflows, close open `renovate/*` PRs and the dashboard issue, and
+  remove the App from the ruleset bypass list. Renovate keeps no state outside GitHub.

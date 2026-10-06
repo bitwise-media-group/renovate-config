@@ -1,9 +1,21 @@
 # Copyright 2026 BitWise Media Group Ltd
 # SPDX-License-Identifier: MIT
 
-# The org's self-hosted Renovate bot. One scheduled run walks every repository the
-# "Renovate" GitHub App is installed on (autodiscover; the installation IS the scope) and
-# opens/updates/merges dependency PRs according to the shared preset in ../default.json5.
+# The org-wide Renovate loop — a manual fallback only; it no longer runs on a schedule.
+# One run walks every repository the "Renovate" GitHub App is installed on (autodiscover;
+# the installation IS the scope) and opens/updates/merges dependency PRs according to the
+# shared preset in default.json5 at the repo root.
+#
+# Every repository now carries its own .github/workflows/renovate.yaml, a thin caller for
+# github-workflows' reusable renovate.yaml: the same App, the same renovate-global.json5
+# and the same preset, pinned to that one repository, on its own hourly cron and in
+# parallel with every other repo. That is what keeps dependencies current; this loop
+# would only make each repo wait a full cycle of the whole org.
+#
+# Use workflow_dispatch only as a fallback (e.g. to sweep repos that have no caller yet,
+# or a `dry-run: full` across the org). A live run races the per-repo bots: both push to
+# the same renovate/* branches and both automerge, and the concurrency group below only
+# serialises org-wide runs, not the per-repo ones (theirs is `renovate-<repo>`).
 #
 # The merge model, in one place:
 #   - The App's installation token makes Renovate create commits via the GitHub API
@@ -14,16 +26,12 @@
 #     off; Renovate merges via the API on a later run once every check is green). The
 #     server-side squash commit is web-flow signed. This mirrors how dependabot-merge
 #     worked with the FF Merge App.
-#   - Renovate automerges at most ONE PR per base branch per run, so the hourly cron is
-#     also what gives same-day merge throughput. A run takes a few minutes; the repository
-#     cache below keeps it that way.
-name: Renovate
+#   - Renovate automerges at most ONE PR per base branch per run, so each per-repo
+#     caller's hourly cron is also what gives same-day merge throughput. The repository
+#     cache below keeps a manual org-wide run cheap for unchanged repos.
+name: Renovate (org-wide)
 
 on:
-  schedule:
-    # hourly, off the congested top of the hour (same convention as self-merge's
-    # `17 * * * *` in github-workflows)
-    - cron: "24 * * * *"
   workflow_dispatch:
     inputs:
       dry-run:
@@ -69,13 +77,15 @@ jobs:
       # Repository cache: persists Renovate's per-repo extraction/lookup state between
       # runs so unchanged repos are cheap. The Renovate container runs as uid 12021, so
       # ownership is handed over before the run and back after (the save step's tar runs
-      # as the runner user).
+      # as the runner user). The key is `renovate-org-cache-`, not the per-repo caller's
+      # `renovate-cache-`: both run in this repository's cache scope, and neither should
+      # restore (and re-save) the other's state.
       - name: Restore repository cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/renovate/cache/renovate/repository
-          key: renovate-cache-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: renovate-cache-
+          key: renovate-org-cache-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: renovate-org-cache-
 
       - name: Hand cache to the Renovate container user
         run: |
@@ -100,4 +110,4 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/renovate/cache/renovate/repository
-          key: renovate-cache-${{ github.run_id }}-${{ github.run_attempt }}
+          key: renovate-org-cache-${{ github.run_id }}-${{ github.run_attempt }}

@@ -16,7 +16,7 @@
     "customManagers:dockerfileVersions",
   ],
   timezone: "Etc/UTC",
-  schedule: ["at any time"], // cadence is the bot workflow's cron, not repo config
+  schedule: ["at any time"], // cadence is each repo's renovate.yaml cron, not repo config
   semanticCommits: "enabled",
   // chore(deps) default: dev-toolchain bumps (mise.lock, the .mise submodule) don't cut a
   // release. github-actions bumps override to fix(deps) below — those pins ship to
