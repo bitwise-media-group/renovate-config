@@ -14,7 +14,7 @@ submodule pointer and consuming the `# renovate:` annotations already sitting ab
   away when someone ticks a Dependency Dashboard or Renovate PR checkbox. The token is minted from the org's
   **"Renovate" GitHub App** and scoped to the calling repository, so the App must be installed on it. The reusable
   workflow checks this repository out from `main` and hands it `renovate-global.json5` unchanged, so bot-side changes
-  here reach every repo on its next run.
+  here reach every repo on its next run. This repository carries the same caller.
 - **[`.github/workflows/renovate-org.yaml`](.github/workflows/renovate-org.yaml)** is the old org-wide loop: one run
   autodiscovers every repository the App is installed on. It no longer runs on a schedule and is kept only as a manual
   `workflow_dispatch` fallback (see [Operating the bot](#operating-the-bot)).
