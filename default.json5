@@ -68,8 +68,19 @@
     automerge: true,
     minimumReleaseAge: null,
   },
-  // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated
-  postUpdateOptions: ["gomodTidy"],
+  // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated.
+  // gomodTidy alone is NOT enough:
+  //  - Renovate skips tidy on every major update unless gomodUpdateImportPaths is also
+  //    set — a Go major lives in the module path (/v90 → /v92), and tidying without
+  //    rewriting the imports would strip the new requirement again. Without it a major
+  //    PR lands as a dead `require` line beside the old one (patchy#389), never failing
+  //    CI. With it, imports are rewritten and tidied, so breaking API changes go red.
+  //  - gomodTidy tidies only the go.mod holding the bumped dependency. gomodTidyAll also
+  //    re-tidies every module that pulls it in through a local `replace` (an e2e or
+  //    tools module beside the root), whose indirect requirements otherwise drift. The
+  //    dependent is found by matching the replace target against `\.{1,2}/`, so it must
+  //    be spelled `../` or `./sub` — a bare `..` is silently not seen as dependent.
+  postUpdateOptions: ["gomodTidy", "gomodTidyAll", "gomodUpdateImportPaths"],
   customManagers: [
     // Dockerfile GitHub-release-asset pins: bump a release tag AND the sha256 of one of
     // its assets in lockstep (customManagers:dockerfileVersions above bumps only the

@@ -59,7 +59,9 @@ stock bot satisfies. The pieces that make it work:
 - **Grouping**: minor/patch github-actions bumps group by publisher (`actions`, `github`, `bitwise-media-group`,
   `codecov`, `google`, `goreleaser`) — majors and `0.x` fall out as individual PRs so they never block a group. Other
   ecosystems get `group:monorepos`' source-repo grouping from `config:recommended` (e.g. all otel-go core modules in
-  one PR). gomod bumps run `go mod tidy` (`postUpdateOptions: gomodTidy`).
+  one PR). gomod bumps run `go mod tidy` (`postUpdateOptions: gomodTidy`), also on majors, whose import paths are
+  rewritten (`gomodUpdateImportPaths`), and in every module that depends on the bumped one through a local
+  `replace` (`gomodTidyAll` — spell the target `../`, not a bare `..`, or the dependent is missed).
 - **Committed action bundles**: JS action repos that commit their rollup output (e.g.
   [`ff-merge`](https://github.com/bitwise-media-group/ff-merge),
   [`setup-evolve`](https://github.com/bitwise-media-group/setup-evolve)) rebuild `dist/` after npm bumps so the
