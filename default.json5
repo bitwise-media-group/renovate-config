@@ -66,6 +66,7 @@
     enabled: true,
     schedule: ["at any time"],
     automerge: true,
+    addLabels: ["auto-merge"], // see the automerge packageRules below
     minimumReleaseAge: null,
   },
   // run `go mod tidy` after gomod bumps so go.mod/go.sum stay pruned, not just updated.
@@ -200,18 +201,24 @@
     },
     // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
     // human review (the auto-merge label rules below hand the post-approval merge to
-    // the merge workflow). The 0.x test must also catch prefixed release tags
-    // ("v0.5.0", "rust-v0.147.0") — matchCurrentVersion regexes run against the raw
-    // version string, and the release-asset custom manager above pins full tags, so a
-    // bare `!/^0/` would wave 0.x tags through as stable.
+    // the merge workflow). Every automerge rule ALSO adds the auto-merge label: Renovate
+    // merges unattended only on a later run (at most one PR per base branch per run),
+    // so the label lets the merge workflow land an already-approved, green PR on CI
+    // completion instead of leaving it queued. ff-merge still requires an approval, so
+    // the label never lowers the bar — it only adds a second, faster path. The 0.x test
+    // must also catch prefixed release tags ("v0.5.0", "rust-v0.147.0") —
+    // matchCurrentVersion regexes run against the raw version string, and the
+    // release-asset custom manager above pins full tags, so a bare `!/^0/` would wave
+    // 0.x tags through as stable.
     {
       matchUpdateTypes: ["minor", "patch"],
       matchCurrentVersion: "!/(^|[-v])0(\\.|$)/",
       automerge: true,
+      addLabels: ["auto-merge"],
     },
     // digest-only bumps (go module pseudo-versions, SHA-pinned release assets) carry
     // no semver signal for a human to review — automerge unattended like a patch
-    { matchUpdateTypes: ["digest"], automerge: true },
+    { matchUpdateTypes: ["digest"], automerge: true, addLabels: ["auto-merge"] },
     // docker digest bumps: the docker datasource only yields release timestamps for
     // Docker Hub (`tag_last_pushed`); gcr.io / ghcr.io / cgr.dev images get none, and
     // reproducible builds (distroless) even stamp the image config `created` with the
@@ -233,6 +240,7 @@
       matchCurrentVersion: "/^0/",
       matchUpdateTypes: ["minor", "patch"],
       automerge: true,
+      addLabels: ["auto-merge"],
     },
     // human-gated updates (majors, non-mise 0.x) deliberately do NOT set automerge —
     // Renovate is a bypass actor on the pull-request ruleset, so its own automerge

@@ -53,6 +53,8 @@ stock bot satisfies. The pieces that make it work:
   Majors and `0.x` wait for a human review, but not a human merge: the preset arms them with the `auto-merge` label,
   and once someone approves and every check is green, the merge workflow's `ff-merge` squash-merges the PR (Renovate
   branches are never fast-forwardable, so its `squash-authors` path does an API squash — web-flow signed, no rebase).
+  Automerge PRs carry the `auto-merge` label too: Renovate still merges them unattended on a later run, but an
+  approved, green one is merged by the merge workflow straight away instead of waiting in Renovate's queue.
 - **Commit types**: `chore(deps)` by default (dev-toolchain bumps don't release);
   **github-actions bumps are `fix(deps)`** because SHA pins in reusable workflows ship to consumers and must cut a
   release-please patch.
