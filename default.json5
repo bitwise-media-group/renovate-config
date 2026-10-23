@@ -138,7 +138,9 @@
         // through a bootstrap shim. Under containerbase that shim is a symlink to the
         // `mise` bash wrapper, which drops argv[0], so the shim runs as plain `mise .`
         // ("no task . found"). Installing it up front puts the real binary ahead of the
-        // shim on the task PATH.
+        // shim on the task PATH. TRANSITIONAL: toolchain > v3.3.0 runs tf-docs through
+        // `mise x`, which does the same; drop this install (and its allowedCommands
+        // entry in renovate-global.json5) once the terraform-* repos are on it.
         commands: ["mise install aqua:terraform-docs/terraform-docs", "mise run docs"],
         // the Renovate image ships no mise binary (managers install theirs on demand),
         // so a bare command dies with `spawn mise ENOENT`; have containerbase install it
