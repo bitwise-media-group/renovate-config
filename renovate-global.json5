@@ -31,10 +31,12 @@
   //  - terraform docs regen: the preset runs `mise run docs` in terraform-* module repos
   //    after provider/module constraint bumps so the terraform-docs README blocks (which
   //    embed the constraints, and whose lint check would otherwise go stale-red) are
-  //    refreshed in the same PR.
+  //    refreshed in the same PR (terraform-docs is installed first: the toolchain declares
+  //    it lazy, and its bootstrap shim misfires under containerbase — see the preset).
   allowedCommands: [
     "^npm ci --ignore-scripts$",
     "^npm run build$",
+    "^mise install aqua:terraform-docs/terraform-docs$",
     "^mise run docs$",
   ],
   // TRANSITIONAL (goes with the preset's lockFileMaintenance): mise's own release

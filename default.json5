@@ -134,7 +134,12 @@
       matchManagers: ["terraform"],
       matchRepositories: ["bitwise-media-group/terraform-*"],
       postUpgradeTasks: {
-        commands: ["mise run docs"],
+        // terraform-docs is a lazy tool in the toolchain, normally installed on first use
+        // through a bootstrap shim. Under containerbase that shim is a symlink to the
+        // `mise` bash wrapper, which drops argv[0], so the shim runs as plain `mise .`
+        // ("no task . found"). Installing it up front puts the real binary ahead of the
+        // shim on the task PATH.
+        commands: ["mise install aqua:terraform-docs/terraform-docs", "mise run docs"],
         // the Renovate image ships no mise binary (managers install theirs on demand),
         // so a bare command dies with `spawn mise ENOENT`; have containerbase install it
         installTools: { mise: {} },
