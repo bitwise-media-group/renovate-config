@@ -149,6 +149,22 @@
         executionMode: "branch",
       },
     },
+    // google and google-beta release in lockstep from the same magic-modules build, and
+    // modules mixing them expect matching versions — bump them in one PR. Every update
+    // type, and separateMajorMinor off: one constraint bump classifies differently per
+    // file (">= 7.0, < 8.6" → "< 8.8" is major, ">= 7.46, < 8.6" minor), and a group
+    // otherwise splits majors onto a major-* branch, leaving the same provider half-bumped
+    // across two PRs. A branch automerges only if every update in it does, so a major
+    // riding along still waits for review. Matched on the provider source (packageName),
+    // not the local name, so an aliased required_providers key still groups. The
+    // groupName must not be "google": that's the actions group's branch, and a shared
+    // groupName merges managers into one PR.
+    {
+      matchDatasources: ["terraform-provider"],
+      matchPackageNames: ["hashicorp/google", "hashicorp/google-beta"],
+      groupName: "google providers",
+      separateMajorMinor: false,
+    },
     // Dependabot-equivalent groups, restricted to stable minor/patch so a major or 0.x
     // falls out as its own PR and never blocks the group's automerge.
     {
