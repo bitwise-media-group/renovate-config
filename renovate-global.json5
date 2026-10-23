@@ -24,7 +24,7 @@
   // selectors
   allowedUnsafeExecutions: ["mise"],
   // postUpgradeTasks allow-list — the execution boundary for repo-supplied commands;
-  // anchored exact matches, widen only deliberately. Two org patterns run through it:
+  // anchored exact matches, widen only deliberately. Three org patterns run through it:
   //  - dist rebuild: JS action repos that commit their rollup bundle (ff-merge,
   //    setup-evolve, …) declare a postUpgradeTasks rule in their own
   //    .github/renovate.json5 to rebuild dist/ after npm bumps;
@@ -32,12 +32,20 @@
   //    after provider/module constraint bumps so the terraform-docs README blocks (which
   //    embed the constraints, and whose lint check would otherwise go stale-red) are
   //    refreshed in the same PR (terraform-docs is installed first: the toolchain declares
-  //    it lazy, and its bootstrap shim misfires under containerbase — see the preset).
+  //    it lazy, and its bootstrap shim misfires under containerbase — see the preset);
+  //  - chart mirror regen: flux-containers' .github/renovate.json5 runs
+  //    `patchy mirror upgrade --pinned <entry>` after Renovate bumps a chart version or a
+  //    tracked image tag, rebuilding the derived state (vendor, rendered manifests, image
+  //    locks, allowlist) on the new pin. patchy and grype (lazy, same shim problem) are
+  //    installed first; the entry name is the only templated part, so it is constrained to
+  //    the entry-name alphabet.
   allowedCommands: [
     "^npm ci --ignore-scripts$",
     "^npm run build$",
     "^mise install aqua:terraform-docs/terraform-docs$",
     "^mise run docs$",
+    "^mise install github:bitwise-media-group/patchy aqua:anchore/grype$",
+    "^mise exec -- patchy mirror upgrade --pinned [a-z0-9-]+$",
   ],
   // TRANSITIONAL (goes with the preset's lockFileMaintenance): mise's own release
   // cooldown for `mise lock --bump` selector resolution (3d, matching the preset's
