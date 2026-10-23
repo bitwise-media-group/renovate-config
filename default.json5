@@ -135,6 +135,9 @@
       matchRepositories: ["bitwise-media-group/terraform-*"],
       postUpgradeTasks: {
         commands: ["mise run docs"],
+        // the Renovate image ships no mise binary (managers install theirs on demand),
+        // so a bare command dies with `spawn mise ENOENT`; have containerbase install it
+        installTools: { mise: {} },
         // once per branch after all updates land, not once per dependency
         executionMode: "branch",
       },
