@@ -24,7 +24,7 @@
   // selectors
   allowedUnsafeExecutions: ["mise"],
   // postUpgradeTasks allow-list — the execution boundary for repo-supplied commands;
-  // anchored exact matches, widen only deliberately. Three org patterns run through it:
+  // anchored exact matches, widen only deliberately. Four org patterns run through it:
   //  - dist rebuild: JS action repos that commit their rollup bundle (ff-merge,
   //    setup-evolve, …) declare a postUpgradeTasks rule in their own
   //    .github/renovate.json5 to rebuild dist/ after npm bumps;
@@ -38,8 +38,14 @@
   //    tracked image tag, rebuilding the derived state (vendor, rendered manifests, image
   //    locks, allowlist) on the new pin. patchy and grype (lazy, same shim problem) are
   //    installed first; the entry name is the only templated part, so it is constrained to
-  //    the entry-name alphabet.
+  //    the entry-name alphabet;
+  //  - symlinked-lockfile sweep: the toolchain keeps its real lockfile at .mise/mise.lock
+  //    behind a root mise.lock symlink. The mise manager rewrites the lock through the link
+  //    but stages only the unchanged link, so the toolchain's .github/renovate.json5 runs a
+  //    no-op `true` task whose post-upgrade file sweep commits .mise/mise.lock. `true`
+  //    runs nothing, so allowing it widens nothing.
   allowedCommands: [
+    "^true$",
     "^npm ci --ignore-scripts$",
     "^npm run build$",
     "^mise install aqua:terraform-docs/terraform-docs$",
