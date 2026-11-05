@@ -64,7 +64,7 @@ stock bot satisfies. The pieces that make it work:
   one PR). gomod bumps run `go mod tidy` (`postUpdateOptions: gomodTidy`), also on majors, whose import paths are
   rewritten (`gomodUpdateImportPaths`), and in every module that depends on the bumped one through a local
   `replace` (`gomodTidyAll` — spell the target `../`, not a bare `..`, or the dependent is missed).
-- **Committed action bundles**: JS action repos that commit their rollup output (e.g.
+- **Committed action bundles**: JS action repos that commit their bundle (e.g.
   [`ff-merge`](https://github.com/bitwise-media-group/ff-merge),
   [`setup-evolve`](https://github.com/bitwise-media-group/setup-evolve)) rebuild `dist/` after npm bumps so the
   PR carries a matching bundle — otherwise the dist-up-to-date check fails and blocks every merge path. The
@@ -100,17 +100,20 @@ base, extend it explicitly:
 }
 ```
 
-A repo that commits its rollup bundle keeps `dist/` in sync with a `postUpgradeTasks` rule (the commands must
-match the bot's `allowedCommands` allow-list, or Renovate skips them):
+A repo that commits its bundle keeps `dist/` in sync with a `postUpgradeTasks` rule (the commands must match the bot's
+`allowedCommands` allow-list, or Renovate skips them). A repo on the toolchain's bun-first node archetype rebuilds with
+`mise run build`, which bundles with the bun pinned in the toolchain's `mise.lock`, so `dist/` matches the CI build
+byte-for-byte:
 
 ```json5
 {
   extends: ["github>bitwise-media-group/renovate-config:default.json5"],
   packageRules: [
     {
-      matchManagers: ["npm"],
+      matchManagers: ["bun", "npm"],
       postUpgradeTasks: {
-        commands: ["npm ci --ignore-scripts", "npm run build"],
+        commands: ["mise run build"],
+        installTools: { mise: {} },
         fileFilters: ["dist/**"],
         executionMode: "branch",
       },
@@ -118,6 +121,9 @@ match the bot's `allowedCommands` allow-list, or Renovate skips them):
   ],
 }
 ```
+
+An npm repo that hasn't moved to bun yet runs `["npm ci --ignore-scripts", "npm run build"]` instead. That pair stays
+allow-listed until every action repo is on bun.
 
 To opt a repo out entirely, delete its `.github/workflows/renovate.yaml` and uninstall the App from it (or set
 `{ enabled: false }` in the repo's own config).

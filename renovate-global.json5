@@ -25,9 +25,13 @@
   allowedUnsafeExecutions: ["mise"],
   // postUpgradeTasks allow-list — the execution boundary for repo-supplied commands;
   // anchored exact matches, widen only deliberately. Four org patterns run through it:
-  //  - dist rebuild: JS action repos that commit their rollup bundle (ff-merge,
+  //  - dist rebuild: JS action repos that commit their bundle (ff-merge,
   //    setup-evolve, …) declare a postUpgradeTasks rule in their own
-  //    .github/renovate.json5 to rebuild dist/ after npm bumps;
+  //    .github/renovate.json5 to rebuild dist/ after dependency bumps. Repos on the
+  //    toolchain's bun-first node archetype run `mise run build`: it bundles with the
+  //    bun pinned in the toolchain's mise.lock, so dist/ reproduces byte-for-byte
+  //    against the CI build check (a containerbase-installed bun of another version
+  //    would not). The npm pair stays until every action repo has moved to bun;
   //  - terraform docs regen: the preset runs `mise run docs` in terraform-* module repos
   //    after provider/module constraint bumps so the terraform-docs README blocks (which
   //    embed the constraints, and whose lint check would otherwise go stale-red) are
@@ -48,6 +52,7 @@
     "^true$",
     "^npm ci --ignore-scripts$",
     "^npm run build$",
+    "^mise run build$",
     "^mise install aqua:terraform-docs/terraform-docs$",
     "^mise run docs$",
     "^mise install github:bitwise-media-group/patchy aqua:anchore/grype$",
