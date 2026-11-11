@@ -40,9 +40,10 @@ stock bot satisfies. The pieces that make it work:
    PRs without an approval. GitHub-native automerge is deliberately off: it could satisfy neither the approval rule nor
    the signed-commit rule (a rebase merge would land the branch commits unsigned). Renovate merges via the API on a
    later run once every check on the head is green; the server-side squash commit is web-flow signed.
-3. `rebaseWhen: "conflicted"` merges behind-base PRs **without** a rebase-and-rerun cycle, and Renovate automerges at
-   most one PR per base branch per run — each repo's hourly cron is what gives same-day throughput for a queue of
-   green PRs.
+3. `rebaseWhen: "conflicted"` merges behind-base PRs **without** a rebase-and-rerun cycle. Renovate stops after its
+   first automerge per base branch and restarts once, so a run merges at most two PRs. Each repo's caller therefore
+   also runs Renovate when a required workflow finishes green on a `renovate/*` PR (`workflow_run`) and on every push
+   to `main` — so each merge starts the run that lands the next green PR — with the hourly cron as the backstop.
 
 ## Policy summary (the preset)
 

@@ -26,9 +26,11 @@
 #     off; Renovate merges via the API on a later run once every check is green). The
 #     server-side squash commit is web-flow signed. This mirrors how dependabot-merge
 #     worked with the FF Merge App.
-#   - Renovate automerges at most ONE PR per base branch per run, so each per-repo
-#     caller's hourly cron is also what gives same-day merge throughput. The repository
-#     cache below keeps a manual org-wide run cheap for unchanged repos.
+#   - Renovate merges at most two PRs per base branch per run (it restarts once after
+#     an automerge), so each per-repo caller also runs on renovate/* CI completion and
+#     on every push to main -- each merge starts the next run -- with its hourly cron as
+#     the backstop. The repository cache below keeps a manual org-wide run cheap for
+#     unchanged repos.
 name: Renovate (org-wide)
 
 on:

@@ -228,7 +228,7 @@
     // default automerge policy: stable (>=1.0.0) minor/patch; majors + 0.x wait for a
     // human review (the auto-merge label rules below hand the post-approval merge to
     // the merge workflow). Every automerge rule ALSO adds the auto-merge label: Renovate
-    // merges unattended only on a later run (at most one PR per base branch per run),
+    // merges unattended only on a later run (at most two PRs per base branch per run),
     // so the label lets the merge workflow land an already-approved, green PR on CI
     // completion instead of leaving it queued. ff-merge still requires an approval, so
     // the label never lowers the bar — it only adds a second, faster path. The 0.x test
