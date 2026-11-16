@@ -116,6 +116,11 @@
     },
   ],
   packageRules: [
+    // Every `mise install` in a post-upgrade task names only the tools it needs and passes
+    // --locked: a bare tool name installs the version the repo's toolchain config pins, and
+    // --locked takes its download URL from that toolchain's mise.lock (failing instead of
+    // asking the GitHub/aqua APIs), so the URL rewrites a downstream toolchain applies
+    // (e.g. to an artifactory mirror) carry through. Keep new install tasks to that form.
     // actions pins ship to consumers of the reusable workflows → fix(deps) patch release
     { matchManagers: ["github-actions"], semanticCommitType: "fix" },
     // Terraform compound constraints (">= 5.0, < 6.0") lose their lower bound under
@@ -141,7 +146,7 @@
         // shim on the task PATH. TRANSITIONAL: toolchain > v3.3.0 runs tf-docs through
         // `mise x`, which does the same; drop this install (and its allowedCommands
         // entry in renovate-global.json5) once the terraform-* repos are on it.
-        commands: ["mise install aqua:terraform-docs/terraform-docs", "mise run docs"],
+        commands: ["mise install --locked aqua:terraform-docs/terraform-docs", "mise run docs"],
         // the Renovate image ships no mise binary (managers install theirs on demand),
         // so a bare command dies with `spawn mise ENOENT`; have containerbase install it
         installTools: { mise: {} },
@@ -163,7 +168,8 @@
     //    plugin). The builder is created in-container: the multi-platform OCI export needs
     //    a docker-container driver, and a runner-side setup-buildx builder isn't visible.
     //  - patchy and the scanners are lazy toolchain pins whose bootstrap shims misfire under
-    //    containerbase (see the terraform docs rule above), so they are installed up front.
+    //    containerbase (see the terraform docs rule above), so they are installed up front,
+    //    --locked like every install task (see the top of packageRules).
     //  - Renovate runs post-upgrade commands without a shell (shlex-split argv), so the
     //    guards live in an explicit `sh -c`. The command must match renovate-global.json5
     //    allowedCommands exactly.
@@ -173,7 +179,7 @@
       matchManagers: ["dockerfile"],
       postUpgradeTasks: {
         commands: [
-          "sh -c 'mise tasks info update-allowlists >/dev/null 2>&1 && [ -d security/allowlists ] || exit 0; mise install github:bitwise-media-group/patchy aqua:google/osv-scanner aqua:anchore/grype && { docker buildx inspect renovate >/dev/null 2>&1 || docker buildx create --name renovate --driver docker-container >/dev/null; } && BUILDX_BUILDER=renovate mise run update-allowlists'",
+          "sh -c 'mise tasks info update-allowlists >/dev/null 2>&1 && [ -d security/allowlists ] || exit 0; mise install --locked github:bitwise-media-group/patchy aqua:google/osv-scanner aqua:anchore/grype && { docker buildx inspect renovate >/dev/null 2>&1 || docker buildx create --name renovate --driver docker-container >/dev/null; } && BUILDX_BUILDER=renovate mise run update-allowlists'",
         ],
         installTools: { mise: {} },
         // the allowlists only: the tool installs churn nothing else worth committing
