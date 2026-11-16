@@ -24,7 +24,7 @@
   // selectors
   allowedUnsafeExecutions: ["mise"],
   // postUpgradeTasks allow-list — the execution boundary for repo-supplied commands;
-  // anchored exact matches, widen only deliberately. Four org patterns run through it:
+  // anchored exact matches, widen only deliberately. Five org patterns run through it:
   //  - dist rebuild: JS action repos that commit their bundle (ff-merge,
   //    setup-evolve, …) declare a postUpgradeTasks rule in their own
   //    .github/renovate.json5 to rebuild dist/ after dependency bumps. Repos on the
@@ -43,6 +43,11 @@
   //    locks, allowlist) on the new pin. patchy and grype (lazy, same shim problem) are
   //    installed first; the entry name is the only templated part, so it is constrained to
   //    the entry-name alphabet;
+  //  - allowlist regen: the preset runs the containers archetype's `mise run
+  //    update-allowlists` after Dockerfile FROM bumps, guarded in an `sh -c` so it is a
+  //    no-op in repos without the task or a security/allowlists/ directory. It builds
+  //    images, so those repos' callers opt into Docker (`docker: true`). The whole script
+  //    is matched literally; nothing in it is templated;
   //  - symlinked-lockfile sweep: the toolchain keeps its real lockfile at .mise/mise.lock
   //    behind a root mise.lock symlink. The mise manager rewrites the lock through the link
   //    but stages only the unchanged link, so the toolchain's .github/renovate.json5 runs a
@@ -57,12 +62,16 @@
     "^mise run docs$",
     "^mise install github:bitwise-media-group/patchy aqua:anchore/grype$",
     "^mise exec -- patchy mirror upgrade --pinned [a-z0-9-]+$",
+    "^sh -c 'mise tasks info update-allowlists >/dev/null 2>&1 && \\[ -d security/allowlists \\] \\|\\| exit 0; mise install github:bitwise-media-group/patchy aqua:google/osv-scanner aqua:anchore/grype && \\{ docker buildx inspect renovate >/dev/null 2>&1 \\|\\| docker buildx create --name renovate --driver docker-container >/dev/null; \\} && BUILDX_BUILDER=renovate mise run update-allowlists'$",
   ],
   // TRANSITIONAL (goes with the preset's lockFileMaintenance): mise's own release
   // cooldown for `mise lock --bump` selector resolution (3d, matching the preset's
   // minimumReleaseAge). Exact pins resolve regardless of age, so this is inert for
   // pin-bump artifact runs.
   customEnvVariables: { MISE_MINIMUM_RELEASE_AGE: "3d" },
+  // minutes per exec (default 15). The allowlist regen above builds every image for
+  // amd64 and arm64, the non-native one under QEMU, which runs well past the default.
+  executionTimeout: 60,
   // mise.toml's task_config in consumer repos includes .mise/common/tasks.toml (and
   // .mise/archetypes/<lang>/tasks.toml) from the toolchain submodule; without the clone
   // `mise lock` fails. The submodule's contents are

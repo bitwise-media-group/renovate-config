@@ -149,6 +149,39 @@
         executionMode: "branch",
       },
     },
+    // Dockerfile FROM bumps (the dockerfile manager: FROM lines only; ARG pins belong to the
+    // custom managers) move the base image a container's scan allowlist was derived from,
+    // so findings appear or lapse and the scan gate would go red on the PR. Repos on the
+    // toolchain's containers archetype regenerate security/allowlists/<name>.yaml with
+    // `mise run update-allowlists` (`patchy build --update-allowlists`: rebuild, rescan,
+    // rewrite; never push or sign). Run it in the same PR so the diff carries the allowlist
+    // change for review. Every repo inherits this rule, so the command is a no-op unless
+    // the repo defines that task AND keeps a security/allowlists/ directory. Where it runs:
+    //  - Docker: the build needs `docker buildx` + QEMU, which the Renovate container lacks.
+    //    The repo's renovate.yaml caller sets `docker: true` (github-workflows' reusable
+    //    renovate.yaml sets up QEMU and mounts the runner's socket, docker CLI and buildx
+    //    plugin). The builder is created in-container: the multi-platform OCI export needs
+    //    a docker-container driver, and a runner-side setup-buildx builder isn't visible.
+    //  - patchy and the scanners are lazy toolchain pins whose bootstrap shims misfire under
+    //    containerbase (see the terraform docs rule above), so they are installed up front.
+    //  - Renovate runs post-upgrade commands without a shell (shlex-split argv), so the
+    //    guards live in an explicit `sh -c`. The command must match renovate-global.json5
+    //    allowedCommands exactly.
+    // Automerge is unchanged here: a repo that wants every regenerated allowlist reviewed
+    // turns it off for its dockerfile updates in its own .github/renovate.json5.
+    {
+      matchManagers: ["dockerfile"],
+      postUpgradeTasks: {
+        commands: [
+          "sh -c 'mise tasks info update-allowlists >/dev/null 2>&1 && [ -d security/allowlists ] || exit 0; mise install github:bitwise-media-group/patchy aqua:google/osv-scanner aqua:anchore/grype && { docker buildx inspect renovate >/dev/null 2>&1 || docker buildx create --name renovate --driver docker-container >/dev/null; } && BUILDX_BUILDER=renovate mise run update-allowlists'",
+        ],
+        installTools: { mise: {} },
+        // the allowlists only: the tool installs churn nothing else worth committing
+        fileFilters: ["security/allowlists/**"],
+        // once per branch: one rebuild covers every FROM bump grouped into it
+        executionMode: "branch",
+      },
+    },
     // google and google-beta release in lockstep from the same magic-modules build, and
     // modules mixing them expect matching versions — bump them in one PR. Every update
     // type, and separateMajorMinor off: one constraint bump classifies differently per

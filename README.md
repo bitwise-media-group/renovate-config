@@ -84,6 +84,13 @@ stock bot satisfies. The pieces that make it work:
   ARG CODEX_AMD64_SHA256=0246e2e773834e07f0fb5249ed6ebad12e4591e608f8c7bb97dd6a9690544c36
   ```
 
+- **Container scan allowlists**: after a Dockerfile `FROM` bump, the preset runs `mise run update-allowlists` (the
+  toolchain's containers archetype: rebuild, rescan and regenerate `security/allowlists/<name>.yaml`) so the PR carries
+  the allowlist diff for review. It is a no-op unless the repository defines that task **and** has a
+  `security/allowlists/` directory. The build needs Docker, buildx and QEMU, so such a repository's `renovate.yaml`
+  caller passes `docker: true` to the reusable workflow; without it those PRs fail with an artifact error. To review
+  every regenerated allowlist instead of automerging digest bumps, turn automerge off for the `dockerfile` manager in
+  the repository's `.github/renovate.json5`.
 - **Submodules**: the git-submodules manager is on. A repo opts its `.mise` submodule in by setting `branch` in
   `.gitmodules` to the toolchain's full semver tag (e.g. `v2.3.0`) so updates classify as major/minor/patch; Renovate
   keeps the tag current from then on.
